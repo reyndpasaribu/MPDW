@@ -1,0 +1,168 @@
+---
+tittle: "P1"
+author: "Reynd"
+---
+git config --global user.email "you@example.com"
+  git config --global user.name "Your Name"
+
+## Library / Packages
+
+*Package* R yang akan digunakan pada perkuliahan Analisis Deret Waktu sesi UTS adalah: `forecast`, `graphics`, `TTR`, `TSA` . Jika *package* tersebut belum ada, silakan install terlebih dahulu.
+
+```{r}
+install.packages("forecast")
+install.packages("graphics")
+install.packages("TTR")
+install.packages("TSA")
+```
+
+Jika sudah ada, silakan panggil library *package* tersebut.
+
+```{r}
+library("forecast")
+library("graphics")
+library("TTR")
+library("TSA")
+```
+
+## Impor Data
+
+```{r}
+#install.packages("rio") #install jika belum ada
+library(rio)
+data <- import("https://raw.githubusercontent.com/reyndpasaribu/MPDW/main/DATA/datal.csv")
+```
+
+## Eksplorasi Data
+
+Melihat data menggunakan fungsi `View()`, struktur data menggunakan fungsi `str()`, dan dimensi data menggunakan fungsi `dim()`.
+
+```{r}
+View(data)
+str(data)
+dim(data)
+```
+
+Mengubah data agar terbaca sebagai data deret waktu dengan fungsi `ts()` .
+
+```{r}
+data.ts <- ts(data$Suhu)
+```
+
+Menampilkan ringkasan data
+
+```{r}
+summary(data.ts)
+```
+
+Membuat plot data deret waktu
+
+```{r}
+ts.plot(data.ts, xlab="Periode", ylab="Suhu", 
+        main = "Time Series Plot")
+points(data.ts)
+```
+
+## Single Moving Average & Double Moving Average
+
+### Pembagian Data
+
+Pembagian data latih dan data uji dilakukan dengan perbandingan 80% data latih dan 20% data uji.
+
+```{r}
+#membagi data latih dan data uji
+training_ma <- data[1:115,]
+testing_ma <- data[116:144,]
+train_ma.ts <- ts(training_ma$Suhu)
+test_ma.ts <- ts(testing_ma$Suhu)
+```
+
+### Eksplorasi Data
+
+Eksplorasi data dilakukan pada keseluruhan data, data latih serta data uji menggunakan plot data deret waktu.
+
+```{r}
+#eksplorasi keseluruhan data
+plot(data.ts, col="red",main="Plot semua data")
+points(data.ts)
+
+#eksplorasi data latih
+plot(train_ma.ts, col="blue",main="Plot data latih")
+points(train_ma.ts)
+
+#eksplorasi data uji
+plot(test_ma.ts, col="blue",main="Plot data uji")
+points(test_ma.ts)
+```
+
+Eksplorasi data juga dapat dilakukan menggunakan package `ggplot2` dengan terlebih dahulu memanggil library *package* `ggplot2`.
+
+```{r}
+#Eksplorasi dengan GGPLOT
+library(ggplot2)
+ggplot() + 
+  geom_line(data = training_ma, aes(x = Periode, y = Suhu, col = "Data Latih")) +
+  geom_line(data = testing_ma, aes(x = Periode, y = Suhu, col = "Data Uji")) +
+  labs(x = "Periode", y = "Suhu", color = "Legend") +
+  scale_colour_manual(name="Keterangan:", breaks = c("Data Latih", "Data Uji"),
+                      values = c("blue", "red")) + 
+  theme_bw() + theme(legend.position = "bottom",
+                     plot.caption = element_text(hjust=0.5, size=12))
+```
+
+### Single Moving Average (SMA)
+
+```{r}
+data.sma<-SMA(train_ma.ts, n=4)
+data.sma
+```
+
+```{r}
+data.ramal<-c(NA,data.sma)
+data.ramal #forecast 1 periode ke depan
+```
+
+
+```{r}
+data.gab<-cbind(aktual=c(train_ma.ts,rep(NA,29)),pemulusan=c(data.sma,rep(NA,29)),ramalan=c(data.ramal,rep(data.ramal[length(data.ramal)],28)))
+data.gab
+```
+
+Adapun plot data deret waktu dari hasil peramalan yang dilakukan adalah sebagai berikut.
+
+```{r}
+ts.plot(data.ts, xlab="Periode", ylab="Suhu", main= "SMA N=4 Data Suhu")
+points(data.ts)
+lines(data.gab[,2],col="green",lwd=2)
+lines(data.gab[,3],col="red",lwd=2)
+legend("topleft",c("data aktual","data pemulusan","data peramalan"), lty=8, col=c("black","green","red"), cex=0.5)
+```
+
+
+```{r}
+#Menghitung nilai keakuratan data latih
+error_train.sma = train_ma.ts-data.ramal[1:length(train_ma.ts)]
+SSE_train.sma = sum(error_train.sma[5:length(train_ma.ts)]^2)
+MSE_train.sma = mean(error_train.sma[5:length(train_ma.ts)]^2)
+MAPE_train.sma = mean(abs((error_train.sma[5:length(train_ma.ts)]/train_ma.ts[5:length(train_ma.ts)])*100))
+
+akurasi_train.sma <- matrix(c(SSE_train.sma, MSE_train.sma, MAPE_train.sma))
+row.names(akurasi_train.sma)<- c("SSE", "MSE", "MAPE")
+colnames(akurasi_train.sma) <- c("Akurasi m = 4")
+akurasi_train.sma
+```
+
+
+
+```{r}
+#Menghitung nilai keakuratan data uji
+error_test.sma = test_ma.ts-data.gab[116:144,3]
+SSE_test.sma = sum(error_test.sma^2)
+MSE_test.sma = mean(error_test.sma^2)
+MAPE_test.sma = mean(abs((error_test.sma/test_ma.ts*100)))
+
+akurasi_test.sma <- matrix(c(SSE_test.sma, MSE_test.sma, MAPE_test.sma))
+row.names(akurasi_test.sma)<- c("SSE", "MSE", "MAPE")
+colnames(akurasi_test.sma) <- c("Akurasi m = 4")
+akurasi_test.sma
+```
