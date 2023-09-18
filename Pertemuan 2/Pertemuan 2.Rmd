@@ -1,8 +1,7 @@
 ---
 title: "Pertemuan 2 - Regresi"
 author:
-- Adelia Putri Pangestika
-- Muhammad Rizky Nurhambali
+- Reynd Hamonangan Pasaribu
 output:
   pdf_document: default
   word_document: default
