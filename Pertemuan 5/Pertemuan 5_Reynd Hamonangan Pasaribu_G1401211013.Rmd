@@ -1,0 +1,158 @@
+---
+title: "Pertemuan 5"
+author: "Reynd Hamonangan Pasaribu - G1401211013"
+date: "2023-10-01"
+output: html_document
+---
+
+```{r}
+library(ggplot2)
+library(tsibble)
+library(tseries)
+library(MASS)
+```
+
+# Input Data
+```{r}
+datal <- rio::import("https://raw.githubusercontent.com/reyndpasaribu/MPDW/main/DATA/datal.csv")
+datal
+```
+
+## Eksplorasi Data (Plot Time Series)
+```{r}
+Periode <- datal$Periode
+Suhu <- datal$Suhu
+datal.ts <-ts(datal$Suhu)
+
+plot_stas <- datal.ts |> as_tsibble() |> 
+  ggplot(aes(x = Periode, y = Suhu)) + geom_line() + theme_bw() +
+  xlab("Periode") + ylab("Suhu")
+plot_stas
+mean(datal.ts)
+```
+Plot deret waktu di atas menunjukkan bahwa data stasioner dalam rataan, ditandai dengan data yang menyebar di sekitar nilai tengahnya (27) dan tidak stasioner dalam ragam, ditandai dengan lebar pita yang cenderung berbeda.
+
+## Plot ACF
+```{r}
+acf(datal.ts)
+```
+Berdasarkan plot ACF, terlihat bahwa plot ACF pada data tersebut cenderung *tails off* dan membentuk gelombang sinus.
+
+## Uji ADF
+```{r}
+tseries::adf.test(datal.ts)
+```
+$H_0$ : Data tidak stasioner dalam rataan
+$H_1$ : Data stasioner dalam rataan
+
+Berdasarkan uji ADF tersebut, didapat p-value sebesar 0.02012 yang lebih kecil dari taraf nyata 5% sehingga tolak $H_0$ dan menandakan bahwa data **stasioner dalam rataan**. Hal ini sesuai dengan hasil eksplorasi menggunakan plot time series dan plot ACF.
+
+
+## Plot Box-Cox
+```{r}
+index <- seq(1:144)
+bc = boxcox(datal.ts~index, lambda = seq(-30,2,by=0.01))
+
+#Nilai Rounded Lambda
+lambda <- bc$x[which.max(bc$y)]
+lambda
+
+#SK
+bc$x[bc$y > max(bc$y) - 1/2 * qchisq(.95,1)]
+tail(bc$x[bc$y > max(bc$y) - 1/2 * qchisq(.95,1)])
+```
+Gambar di atas menunjukkan nilai rounded value ($\lambda$) optimum sebesar -12.71 dan pada selang kepercayaan 95% nilai memiliki batas bawah -18.90 dan batas atas -6.69. Selang tersebut tidak memuat nilai satu sehingga dapat dikatakan bahwa data suhu **tidak stasioner dalam ragam**.
+
+
+# Partisi Data
+## Partisi 1
+```{r}
+dt_stas1 <- datal.ts[1:48] |> ts()
+mean(dt_stas1)
+var(dt_stas1)
+```
+
+## Plot *Time Series*
+```{r}
+dt_stas1 |> as_tsibble() |> 
+  ggplot(aes(x = index, y = value)) +
+  geom_line() + theme_bw() +
+  xlab("Periode") + ylab("Suhu")
+```
+Plot deret waktu di atas menunjukkan bahwa data tidak stasioner dalam rataan, ditandai dengan data yang tidak menyebar di sekitar nilai tengahnya (26.5) dan stasioner dalam ragam, ditandai dengan lebar pita yang cenderung sama.
+
+## Plot ACF
+```{r}
+acf(dt_stas1)
+```
+Berdasarkan plot ACF, terlihat bahwa plot ACF pada data tersebut cenderung *tails off* dan membentuk gelombang sinus.
+
+## Uji ADF
+```{r}
+tseries::adf.test(dt_stas1)
+```
+$H_0$ : Data tidak stasioner dalam rataan
+$H_1$ : Data stasioner dalam rataan
+
+Berdasarkan uji ADF tersebut, didapat p-value sebesar 0.09668 yang lebih besar dari taraf nyata 5% sehingga tak tolak $H_0$ dan menandakan bahwa data **tidak stasioner dalam rataan**. Hal ini sesuai dengan hasil eksplorasi menggunakan plot time series dan plot ACF.
+
+## Plot Boxcox
+```{r}
+index <- seq(1:48)
+bc = boxcox(dt_stas1~index, lambda = seq(-20,15,by=0.01))
+
+#Nilai Rounded Lambda
+lambda <- bc$x[which.max(bc$y)]
+lambda
+
+#SK
+bc$x[bc$y > max(bc$y) - 1/2 * qchisq(.95,1)]
+tail(bc$x[bc$y > max(bc$y) - 1/2 * qchisq(.95,1)])
+```
+
+Gambar di atas menunjukkan nilai rounded value ($\lambda$) optimum sebesar -4.67 dan pada selang kepercayaan 95% nilai memiliki batas bawah -17.88 dan batas atas 8.95. Selang tersebut memuat nilai satu sehingga dapat dikatakan bahwa data suhu **stasioner dalam ragam**.
+
+## Partisi 2
+```{r}
+dt_stas2 <- datal.ts[1:96] |> ts()
+mean(dt_stas2)
+var(dt_stas2)
+```
+
+## Plot *Time Series*
+```{r}
+dt_stas2 |> as_tsibble() |> 
+  ggplot(aes(x = index, y = value)) +
+  geom_line() + theme_bw() +
+  xlab("Periode") + ylab("Suhu")
+
+```
+Plot deret waktu di atas menunjukkan bahwa data tidak stasioner dalam rataan, ditandai dengan data yang tidak menyebar di sekitar nilai tengahnya (26) dan ada lebar pita yang tidak sama sehingga ada kemungkinan bahwa data tidak stasioner dalam ragam.
+
+## Plot ACF
+```{r}
+acf(dt_stas2)
+```
+Berdasarkan plot ACF, terlihat bahwa plot ACF pada data tersebut cenderung *tails off* dan membentuk gelombang sinus.
+
+## Uji ADF
+```{r}
+tseries::adf.test(dt_stas2)
+```
+$H_0$ : Data tidak stasioner dalam rataan
+$H_1$ : Data stasioner dalam rataan
+
+Berdasarkan uji ADF tersebut, didapat p-value sebesar 0.07816 yang lebih besar dari taraf nyata 5% sehingga tak tolak $H_0$ dan menandakan bahwa data **tidak stasioner dalam rataan**. Hal ini sesuai dengan hasil eksplorasi menggunakan plot time series dan plot ACF.
+
+## Plot Boxcox
+```{r}
+index <- seq(1:96)
+bc = boxcox(dt_stas2~index, lambda = seq(-30,4,by=0.01))
+#Nilai Rounded Lambda
+lambda <- bc$x[which.max(bc$y)]
+lambda
+#SK
+bc$x[bc$y > max(bc$y) - 1/2 * qchisq(.95,1)] 
+tail(bc$x[bc$y > max(bc$y) - 1/2 * qchisq(.95,1)])
+```
+Gambar di atas menunjukkan nilai rounded value ($\lambda$) optimum sebesar -11.89 dan pada selang kepercayaan 95% nilai memiliki batas bawah -19.53 dan batas atas -4.53. Selang tersebut tidak memuat nilai satu sehingga dapat dikatakan bahwa data suhu **tidak stasioner dalam ragam**.
